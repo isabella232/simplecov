@@ -23,17 +23,15 @@ module SimpleCov
     # Please check out the RDoc for SimpleCov::Configuration to find about available config options
     #
     def start(profile=nil, &block)
-      if SimpleCov.usable?
-        load_profile(profile) if profile
-        configure(&block) if block_given?
-        @result = nil
-        self.running = true
-        Coverage.start
-      else
-        warn "WARNING: SimpleCov is activated, but you're not running Ruby 1.9+ - no coverage analysis will happen"
-        warn "Starting with SimpleCov 1.0.0, even no-op compatibility with Ruby <= 1.8 will be entirely dropped."
-        false
+      require 'coverage'
+      formatter SimpleCov::Formatter::HTMLFormatter
+      add_filter '/test/'
+      add_filter do |src|
+        !(src.filename =~ /^#{Regexp.escape(SimpleCov.root)}/i)
       end
+      @result = nil
+      self.running = true
+      Coverage.start
     end
 
     #
@@ -88,34 +86,6 @@ module SimpleCov
       end
       grouped
     end
-
-    #
-    # Applies the profile of given name on SimpleCov configuration
-    #
-    def load_profile(name)
-      profiles.load(name)
-    end
-
-    def load_adapter(name)
-      warn "method load_adapter is deprecated. use load_profile instead"
-      load_profile(name)
-    end
-
-    #
-    # Checks whether we're on a proper version of Ruby (likely 1.9+) which
-    # provides coverage support
-    #
-    def usable?
-      return @usable if defined? @usable and !@usable.nil?
-
-      @usable = begin
-        require 'coverage'
-        require 'simplecov/jruby_fix'
-        true
-      rescue LoadError
-        false
-      end
-    end
   end
 end
 
@@ -124,7 +94,6 @@ require 'simplecov/configuration'
 SimpleCov.send :extend, SimpleCov::Configuration
 require 'simplecov/exit_codes'
 require 'simplecov/json'
-require 'simplecov/profiles'
 require 'simplecov/source_file'
 require 'simplecov/file_list'
 require 'simplecov/result'
@@ -138,6 +107,3 @@ require 'simplecov/version'
 
 # Load default config
 require 'simplecov/defaults' unless ENV['SIMPLECOV_NO_DEFAULTS']
-
-# Load Rails integration (only for Rails 3, see #113)
-require 'simplecov/railtie' if defined? Rails::Railtie
